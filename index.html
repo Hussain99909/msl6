@@ -221,7 +221,7 @@
                 
                 <div style="padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: white;">
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button onclick="closeModal('chatModal')" style="background:var(--bg-light); border:none; border-radius:50%; width:35px; height:35px; display:flex; justify-content:center; align-items:center; cursor:pointer;" title="إغلاق">❌</button>
+                        <button onclick="closeModal('chatModal')" style="background:var(--bg-light); border:none; border-radius:20px; padding: 5px 15px; font-weight:bold; font-size:14px; color:var(--danger); display:flex; justify-content:center; align-items:center; cursor:pointer;">إغلاق</button>
                         <button style="background:var(--bg-light); border:none; border-radius:50%; width:35px; height:35px; display:flex; justify-content:center; align-items:center; cursor:pointer;">📷</button>
                         <button style="background:var(--wa-light); color:white; border:none; border-radius:50%; width:35px; height:35px; font-size:22px; display:flex; justify-content:center; align-items:center; cursor:pointer;">+</button>
                     </div>
@@ -231,7 +231,7 @@
                 <div style="padding: 5px 15px 15px; border-bottom: 1px solid #f0f2f5;">
                     <div style="background: var(--bg-light); border-radius: 20px; padding: 10px 15px; display: flex; align-items: center; gap: 10px;">
                         <span style="color:var(--text-sub); font-size: 16px;">🔍</span>
-                        <input type="text" placeholder="اسأل Meta AI أو ابحث" style="border:none; background:transparent; width:100%; font-size:15px; outline:none; color: var(--text-main);">
+                        <input type="text" placeholder="اسأل أو ابحث" style="border:none; background:transparent; width:100%; font-size:15px; outline:none; color: var(--text-main);">
                     </div>
                 </div>
 
@@ -253,7 +253,7 @@
             <div id="activeChatArea" style="display:none; flex:1; flex-direction:column; position: relative; height: 100%;">
                 
                 <div style="padding: 12px 15px; background: white; border-bottom: 1px solid #ddd; display: flex; align-items: center; gap: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                    <button onclick="backToChatList()" style="background:none; border:none; font-size:24px; cursor:pointer; color: var(--primary); padding: 0;">🔙</button>
+                    <button onclick="backToChatList()" style="background:var(--bg-light); border:none; border-radius:20px; padding: 5px 15px; font-weight:bold; font-size:14px; color:var(--danger); display:flex; justify-content:center; align-items:center; cursor:pointer;">رجوع</button>
                     <div style="display: flex; flex-direction: column; text-align: right; flex: 1;">
                         <span id="chatHeaderName" style="font-weight: bold; color: var(--text-main); font-size: 17px;"></span>
                         <span id="chatHeaderStatus" style="font-size: 12px; color: var(--text-sub);"></span>
@@ -294,7 +294,7 @@
         <div class="modal-content">
             <h3 style="margin-top:0; color: var(--success);">📤 الجلسات المرسلة</h3>
             <div id="sentSessionsContainer"></div>
-            <button onclick="closeModal('sentSessionsModal')" class="close-btn">إغلاق</button>
+            <button onclick="closeModal('sentSessionsModal')" class="close-btn">رجوع</button>
         </div>
     </div>
 
@@ -336,6 +336,7 @@
     let unreadMessagesTracker = new Map();
     let globalUsersStatus = {}; 
     let chatMetadata = {};
+    let chatMessagesMap = {}; // خريطة لحفظ الرسائل حتى نكدر نفتح الجلسات منها
 
     let mediaRecorder;
     let audioChunks = [];
@@ -547,6 +548,8 @@
         document.getElementById('chatListContainer').style.display = 'none';
         document.getElementById('activeChatArea').style.display = 'flex';
         
+        chatMessagesMap = {}; // تصفير الخريطة عند فتح محادثة جديدة
+
         if (statusListenerRef) statusListenerRef.off();
         statusListenerRef = db.ref('/users_status/' + partnerName);
         statusListenerRef.on('value', snap => {
@@ -578,6 +581,8 @@
             const msg = snapshot.val();
             msg.id = snapshot.key; 
             
+            chatMessagesMap[msg.id] = msg; // حفظ الرسالة في الخريطة للوصول السريع للجلسات
+
             if (msg.sender !== currentUser && !msg.isRead) {
                 db.ref('chats/' + roomId + '/' + msg.id).update({ isRead: true });
                 chatMetadata[partnerName].unreadCount = Math.max(0, chatMetadata[partnerName].unreadCount - 1);
@@ -590,6 +595,7 @@
         chatListenerRef.on('child_changed', (snapshot) => {
             const msg = snapshot.val();
             msg.id = snapshot.key;
+            chatMessagesMap[msg.id] = msg;
             renderMessage(msg);
         });
 
@@ -645,13 +651,23 @@
         div.className = `message-bubble ${isMe ? 'msg-sent' : 'msg-received'}`;
         
         let contentHtml = escapeChatHtml(msg.content);
-        
-        // جلب الرابط أو النص المشفر للملف
         const fileUrlToShow = msg.fileUrl || msg.content;
 
-        // ترتيب عرض الملفات والصور للتحميل أو الفتح المباشر
+        // ترتيب عرض الرسائل حسب النوع (نص، صورة، ملف، صوت، أو جلسة)
         if (msg.type === 'session') {
-            contentHtml = "📁 جلسة عمل (يجب فتحها من البرنامج الأساسي)";
+            const count = (msg.sessionData && msg.sessionData.itemsCount) ? msg.sessionData.itemsCount : 'مجموعة';
+            contentHtml = `
+                <div style="display:flex; flex-direction:column; gap:8px; background:#e3f2fd; padding:10px; border-radius:8px; border-right: 4px solid #1976d2; direction:rtl;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:24px;">📁</span>
+                        <div>
+                            <div style="font-weight:bold; font-size:14px; color:#0d47a1;">جلسة عمل مشتركة</div>
+                            <div style="font-size:12px; color:#1565c0;">تحتوي على ${count} مواد</div>
+                        </div>
+                    </div>
+                    <button onclick="loadSessionFromChat('${msg.id}')" style="background:#1976d2; color:white; border:none; padding:8px; border-radius:5px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">📥 استيراد وتعديل الجلسة</button>
+                </div>
+            `;
         } else if (msg.type === 'image') {
             contentHtml = fileUrlToShow ? `
                 <a href="${fileUrlToShow}" download="${msg.fileName || 'image.jpg'}" title="انقر لتحميل أو فتح الصورة">
@@ -665,7 +681,7 @@
                     <div style="flex:1; overflow:hidden;">
                         <div style="font-weight:bold; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" dir="ltr">${msg.fileName || 'ملف_مرفق'}</div>
                     </div>
-                    <a href="${fileUrlToShow}" download="${msg.fileName || 'attachment'}" style="background:var(--primary); color:white; padding:6px 12px; border-radius:5px; text-decoration:none; font-size:12px; font-weight:bold; white-space:nowrap; box-shadow:0 2px 4px rgba(0,0,0,0.1);">تحميل / فتح</a>
+                    <a href="${fileUrlToShow}" download="${msg.fileName || 'attachment'}" style="background:var(--primary); color:white; padding:6px 12px; border-radius:5px; text-decoration:none; font-size:12px; font-weight:bold; white-space:nowrap; box-shadow:0 2px 4px rgba(0,0,0,0.1);">تحميل</a>
                 </div>
             ` : "📎 ملف مرفق";
         } else if (msg.type === 'audio') {
@@ -691,6 +707,27 @@
         }
     }
 
+    // --- دالة فتح الجلسة من المحادثة ---
+    function loadSessionFromChat(msgId) {
+        const msg = chatMessagesMap[msgId];
+        if (!msg || !msg.sessionData || !msg.sessionData.sessionData) {
+            alert("حدث خطأ: بيانات الجلسة غير متوفرة.");
+            return;
+        }
+        
+        if (sessionItems.length > 0) {
+            if (!confirm("توجد مواد حالياً في الصفحة قيد التعديل. هل تريد مسحها واستيراد هذه الجلسة بدلاً منها؟")) {
+                return;
+            }
+        }
+        
+        sessionItems = JSON.parse(JSON.stringify(msg.sessionData.sessionData));
+        renderSessionList();
+        closeModal('chatModal');
+        showToast("تم استيراد الجلسة للتعديل بنجاح 📝");
+        window.scrollTo(0, 0); // التمرير لأعلى الصفحة
+    }
+
     function escapeChatHtml(text) {
         if (!text) return text;
         return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -708,13 +745,10 @@
         }
     }
 
-    // ---------------- كود الرفع الأصلي المأخوذ من برنامجك (بدون Storage) ----------------
-    
     function handleFileUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
 
-        // منع الملفات اللي أكبر من 2 ميجا لتجنب ثقل قاعدة البيانات
         if (file.size > 2 * 1024 * 1024) {
             alert("حجم الملف كبير جداً! يرجى اختيار ملف أقل من 2 ميجابايت.");
             event.target.value = '';
@@ -730,7 +764,6 @@
         const fileName = file.name;
         const reader = new FileReader();
         
-        // من يكمل قراءة الملف، نرسله مباشرة كـ "نص" لقاعدة البيانات
         reader.onload = function(e) {
             const base64 = e.target.result;
             sendAttachmentMessage(base64, type, fileName);
@@ -740,8 +773,6 @@
 
         setTimeout(() => { event.target.value = ''; }, 1000);
     }
-
-    // ---------------- كود المايك الأصلي (بدون Storage) ----------------
     
     async function toggleRecording() {
         const micBtn = document.getElementById('micBtn');
@@ -797,17 +828,15 @@
         }
     }
 
-    // دالة الإرسال لقاعدة البيانات (Realtime Database)
     function sendAttachmentMessage(base64Data, type, customFileName) {
         if (!currentChatPartner) return;
         const roomId = getRoomId(currentUser, currentChatPartner);
         
-        // نضع base64 في حقل (content) و (fileUrl) لضمان التوافق مع دوال العرض والبرنامج الأساسي
         db.ref('chats/' + roomId).push().set({
             sender: currentUser, 
             type: type, 
-            content: base64Data,   // للبرنامج الأساسي
-            fileUrl: base64Data,   // لنسخة الموبايل
+            content: base64Data,
+            fileUrl: base64Data,
             fileName: customFileName, 
             timestamp: firebase.database.ServerValue.TIMESTAMP, 
             isRead: false
@@ -815,8 +844,6 @@
             alert("حدث خطأ أثناء الإرسال: " + err.message);
         });
     }
-
-    // ----------------------------------------------------------------------------------
 
     function clearPage() {
         if(sessionItems.length === 0) { alert("الصفحة فارغة بالفعل!"); return; }
