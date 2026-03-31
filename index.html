@@ -57,31 +57,31 @@
             position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
-        /* --- التنسيق الجديد لأزرار القائمة العلوية (شكل كبسولة أفقية) --- */
+        /* --- التنسيق الجديد لشبكة أزرار القائمة العلوية --- */
+        /* --- التنسيق الجديد لشبكة أزرار القائمة العلوية --- */
         .grid-btn {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.1);
             color: white;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px; 
-            padding: 6px 12px; 
-            font-size: 12px; 
+            border-radius: 8px; /* تقليل الاستدارة لتناسب الحجم الصغير */
+            padding: 4px;
+            font-size: 10px; /* تصغير حجم خط الكلمة لتناسب الأيقونة */
             font-weight: bold;
             cursor: pointer;
             display: flex;
-            flex-direction: row; 
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 6px; 
-            height: auto; 
+            gap: 2px; /* تقليل المسافة جداً بين الأيقونة والكلمة */
+            height: 45px; /* ارتفاع أصغر بكثير ليطابق الأزرار القديمة */
             transition: 0.2s;
             font-family: inherit;
-            white-space: nowrap; 
         }
         .grid-btn:active {
             background: rgba(255, 255, 255, 0.3);
         }
         .grid-btn span.icon-lg {
-            font-size: 14px; 
+            font-size: 13px; /* هذا هو نفس حجم الأيقونات القديمة تماماً */
         }
 
         .search-container { padding: 15px; position: relative; }
@@ -207,7 +207,7 @@
                 </button>
             </div>
 
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; justify-content: flex-start;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 15px;">
                 
                 <button onclick="openModal('chatModal'); renderChatUsersList();" class="grid-btn" style="position: relative; background: #27ae60; border-color: #27ae60;">
                     <span class="icon-lg">💬</span>
@@ -365,7 +365,7 @@
             <h3 style="margin-top:0; color: var(--primary);">☁️ اختيار نسخة قاعدة بيانات</h3>
             <p style="font-size: 13px; color: #e74c3c; margin-bottom: 15px;">يجب اختيار قاعدة بيانات للبدء بالعمل</p>
             <div id="backupListContainer"></div>
-        </div>
+            </div>
     </div>
 
 <script>
@@ -456,7 +456,9 @@
         const savedCurrentSession = localStorage.getItem('companion_current_session_' + currentUser);
         if (savedCurrentSession) sessionItems = JSON.parse(savedCurrentSession);
         
+        // تم التعديل هنا لفتح النافذة بدلاً من التحميل التلقائي المخفي
         fetchCloudDB(); 
+        
         renderUsersList();
         renderSessionList();
     }
